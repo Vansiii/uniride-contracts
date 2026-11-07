@@ -12,17 +12,40 @@ contract UniCoin is ERC20, ERC20Permit, AccessControl {
     /// Rol del relayer del backend: acuña en recargas y subsidios.
     bytes32 public constant ROL_ACUNADOR = keccak256("ROL_ACUNADOR");
 
+    /// Órdenes de recarga ya acuñadas: reintentar tras una respuesta perdida no acuña dos veces.
+    mapping(bytes32 => bool) public ordenAcunada;
+
+    event RecargaAcunada(
+        bytes32 indexed idOrden,
+        address indexed destino,
+        uint256 monto
+    );
+
+    error OrdenYaAcunada(bytes32 idOrden);
+
     constructor(
         address administrador
     ) ERC20("UniCoin", "URC") ERC20Permit("UniCoin") {
         _grantRole(DEFAULT_ADMIN_ROLE, administrador);
     }
 
-    /// @notice Acredita saldo nuevo (recarga o subsidio). Los viajes nunca acuñan.
+    /// @notice Acredita saldo nuevo de un subsidio. Los viajes nunca acuñan.
     function acunar(
         address destino,
         uint256 monto
     ) external onlyRole(ROL_ACUNADOR) {
         _mint(destino, monto);
+    }
+
+    /// @notice Acredita una recarga una sola vez por orden (A-09).
+    function acunarRecarga(
+        address destino,
+        uint256 monto,
+        bytes32 idOrden
+    ) external onlyRole(ROL_ACUNADOR) {
+        if (ordenAcunada[idOrden]) revert OrdenYaAcunada(idOrden);
+        ordenAcunada[idOrden] = true;
+        _mint(destino, monto);
+        emit RecargaAcunada(idOrden, destino, monto);
     }
 }
