@@ -18,4 +18,16 @@ npx hardhat keystore set AMOY_LLAVE_DESPLIEGUE
 npx hardhat keystore set CADENA_RPC_URL
 ```
 
-Después del despliegue se otorgan los roles a las direcciones de las llaves KMS del backend: `ROL_ACUNADOR` (URC), `ROL_OPERADOR` y `ROL_VERIFICADOR` (escrow).
+Después del despliegue se otorgan los roles a las direcciones de las llaves KMS del backend: `ROL_ACUNADOR` (URC), `ROL_OPERADOR` y `ROL_VERIFICADOR` (escrow). El módulo de Ignition **no** los otorga: sin `ROL_VERIFICADOR` ningún pago se libera (quedan pendientes y el backend lo avisa al arrancar). Con la cuenta de despliegue, en `npx hardhat console --network amoy` (o `localhost`), una línea a la vez:
+
+```js
+const { ethers } = await network.connect();
+const urc = await ethers.getContractAt('UniCoin', '<DIRECCION_TOKEN_URC>');
+const escrow = await ethers.getContractAt('EscrowUniRide', '<DIRECCION_ESCROW>');
+await (await urc.grantRole(await urc.ROL_ACUNADOR(), '<dirección del relayer>')).wait();
+await (await escrow.grantRole(await escrow.ROL_OPERADOR(), '<dirección del relayer>')).wait();
+await (await escrow.grantRole(await escrow.ROL_VERIFICADOR(), '<dirección del verificador>')).wait();
+await escrow.hasRole(await escrow.ROL_VERIFICADOR(), '<dirección del verificador>'); // true
+```
+
+El relayer y el verificador son cuentas distintas: el relayer no debe tener `ROL_VERIFICADOR` (A-09).
