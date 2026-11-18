@@ -285,6 +285,39 @@ describe("EscrowUniRide", function () {
       ).to.be.revertedWithCustomError(escrow, "PorcentajeInvalido");
     });
 
+    it("ataque A-09: no se reembolsa dos veces la misma reserva", async function () {
+      const { urc, escrow, verificador, pasajero } =
+        await networkHelpers.loadFixture(conReservaBloqueada);
+      await escrow.connect(verificador).reembolsar(ID_RESERVA, 10_000);
+      await expect(
+        escrow.connect(verificador).reembolsar(ID_RESERVA, 10_000),
+      ).to.be.revertedWithCustomError(escrow, "ReservaNoBloqueada");
+      expect(await urc.balanceOf(pasajero.address)).to.equal(
+        ethers.parseUnits("100", 18),
+      );
+    });
+
+    it("ataque A-09: no se reembolsa una reserva que nunca se bloqueó", async function () {
+      const { escrow, verificador } =
+        await networkHelpers.loadFixture(conReservaBloqueada);
+      await expect(
+        escrow
+          .connect(verificador)
+          .reembolsar(ethers.id("reserva-inexistente"), 10_000),
+      ).to.be.revertedWithCustomError(escrow, "ReservaNoBloqueada");
+    });
+
+    it("ataque A-09: el operador (relayer) tampoco puede reembolsar", async function () {
+      const { escrow, operador } =
+        await networkHelpers.loadFixture(conReservaBloqueada);
+      await expect(
+        escrow.connect(operador).reembolsar(ID_RESERVA, 10_000),
+      ).to.be.revertedWithCustomError(
+        escrow,
+        "AccessControlUnauthorizedAccount",
+      );
+    });
+
     it("ataque A-09: una cuenta sin rol verificador no puede reembolsar", async function () {
       const { escrow, atacante } =
         await networkHelpers.loadFixture(conReservaBloqueada);
